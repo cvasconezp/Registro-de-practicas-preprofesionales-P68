@@ -658,7 +658,98 @@
             loadFromStorage();
             checkAdminSession();
             loadGoogleSheetsConfig();
+            // Intentar cargar datos desde Google Sheets
+            loadDataFromGoogleSheets();
         };
+
+        function loadDataFromGoogleSheets() {
+            if (!GOOGLE_SHEETS_URL) {
+                console.log('Google Sheets URL not configured');
+                return;
+            }
+
+            // Cargar estudiantes
+            fetch(GOOGLE_SHEETS_URL + '?operation=loadStudents', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result === 'success' && data.data && data.data.length > 0) {
+                    studentsData = data.data;
+                    saveToStorage();
+                    console.log('Estudiantes cargados desde Google Sheets:', studentsData.length);
+                    updateAdminStats();
+                }
+            })
+            .catch(error => {
+                console.log('No se pudieron cargar estudiantes desde Google Sheets:', error);
+            });
+
+            // Cargar escuelas
+            fetch(GOOGLE_SHEETS_URL + '?operation=loadSchools', {
+                method: 'GET'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result === 'success' && data.data && data.data.length > 0) {
+                    schoolsData = data.data;
+                    saveToStorage();
+                    console.log('Escuelas cargadas desde Google Sheets:', schoolsData.length);
+                    updateAdminStats();
+                }
+            })
+            .catch(error => {
+                console.log('No se pudieron cargar escuelas desde Google Sheets:', error);
+            });
+        }
+
+        function syncStudentsToGoogleSheets() {
+            if (!GOOGLE_SHEETS_URL || studentsData.length === 0) {
+                return;
+            }
+
+            fetch(GOOGLE_SHEETS_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    operation: 'saveStudents',
+                    students: studentsData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Estudiantes sincronizados con Google Sheets');
+            })
+            .catch(error => {
+                console.error('Error sincronizando estudiantes:', error);
+            });
+        }
+
+        function syncSchoolsToGoogleSheets() {
+            if (!GOOGLE_SHEETS_URL || schoolsData.length === 0) {
+                return;
+            }
+
+            fetch(GOOGLE_SHEETS_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    operation: 'saveSchools',
+                    schools: schoolsData
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Escuelas sincronizadas con Google Sheets');
+            })
+            .catch(error => {
+                console.error('Error sincronizando escuelas:', error);
+            });
+        }
 
         function loadGoogleSheetsConfig() {
             const savedUrl = localStorage.getItem('googleSheetsUrl');
@@ -943,8 +1034,7 @@
                     schoolsData = jsonData.map(row => ({
                         id: findColumn(row, ['ID escuela', 'ID_escuela', 'id_escuela', 'ID escuelas', 'ID Escuela', 'ID Escuelas']),
                         nombre: findColumn(row, ['Nombre escuela', 'Nombre_escuela', 'nombre_escuela', 'Nombre Escuela', 'NOMBRE ESCUELA', 'Nombre', 'nombre']),
-                        distrito: findColumn(row, ['Distrito', 'distrito', 'DISTRITO', 'District', 'district']),
-                        sector: findColumn(row, ['Sector', 'sector', 'SECTOR', 'Tipo de instituci', 'Tipo de institución', 'tipo_institucion']),
+                        distrito: findColumn(row, ['Distrito2', 'distrito2', 'DISTRITO2', 'Distrito 2', 'distrito 2']),
                         sistema: findColumn(row, ['Sistema educativo', 'Sistema_educativo', 'sistema_educativo', 'Sistema Educativo', 'SISTEMA EDUCATIVO', 'Sistema', 'sistema'])
                     }));
                     
@@ -990,7 +1080,7 @@
             // School preview
             previewHTML += '<h4 style="color: #667eea; margin: 20px 0 10px 0;">🏫 Primeras 3 Escuelas:</h4>';
             previewHTML += '<table style="font-size: 14px;"><thead><tr>';
-            previewHTML += '<th>ID</th><th>Nombre</th><th>Distrito</th><th>Sector</th><th>Sistema</th>';
+            previewHTML += '<th>AMIE</th><th>Nombre</th><th>Distrito</th><th>Sistema</th>';
             previewHTML += '</tr></thead><tbody>';
             
             schoolsData.slice(0, 3).forEach(s => {
@@ -998,7 +1088,6 @@
                     <td>${s.id}</td>
                     <td>${s.nombre}</td>
                     <td>${s.distrito}</td>
-                    <td>${s.sector}</td>
                     <td>${s.sistema}</td>
                 </tr>`;
             });
@@ -1006,10 +1095,21 @@
             
             document.getElementById('loadedDataPreview').innerHTML = previewHTML;
             
-            alert(`¡Datos cargados exitosamente!\n\n` +
-                  `Estudiantes: ${studentsData.length}\n` +
-                  `Escuelas: ${schoolsData.length}\n\n` +
-                  `Revisa la vista previa en el panel de administrador`);
+            // Sincronizar con Google Sheets si está configurado
+            if (GOOGLE_SHEETS_URL) {
+                syncStudentsToGoogleSheets();
+                syncSchoolsToGoogleSheets();
+                
+                alert(`¡Datos cargados exitosamente!\n\n` +
+                      `Estudiantes: ${studentsData.length}\n` +
+                      `Escuelas: ${schoolsData.length}\n\n` +
+                      `✅ Los datos se han sincronizado con Google Sheets y estarán disponibles en cualquier navegador.`);
+            } else {
+                alert(`¡Datos cargados exitosamente!\n\n` +
+                      `Estudiantes: ${studentsData.length}\n` +
+                      `Escuelas: ${schoolsData.length}\n\n` +
+                      `⚠️ Configura la URL de Google Sheets para sincronizar los datos.`);
+            }
             
             document.getElementById('adminStats').classList.remove('hidden');
             document.getElementById('exportSection').classList.remove('hidden');
@@ -1177,10 +1277,6 @@
                         <span class="data-value">${school.distrito}</span>
                     </div>
                     <div class="data-row">
-                        <span class="data-label">Sector:</span>
-                        <span class="data-value">${school.sector}</span>
-                    </div>
-                    <div class="data-row">
                         <span class="data-label">Sistema Educativo:</span>
                         <span class="data-value">${school.sistema}</span>
                     </div>
@@ -1247,7 +1343,6 @@
                 escuela_amie: currentSchool.id,
                 escuela_nombre: currentSchool.nombre,
                 escuela_distrito: currentSchool.distrito,
-                escuela_sector: currentSchool.sector,
                 escuela_sistema: currentSchool.sistema,
                 autoridad_nombre: authorityName,
                 autoridad_cargo: authorityCargo,
