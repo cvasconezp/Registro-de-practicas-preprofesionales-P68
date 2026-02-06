@@ -1223,7 +1223,12 @@
                 return;
             }
 
-            const student = studentsData.find(s => s.id.toLowerCase() === id.toLowerCase());
+            const student = studentsData.find(s => {
+                // Verificar que s.id existe y convertir ambos a string para comparar
+                const studentId = s.id ? String(s.id).toLowerCase() : '';
+                const searchId = String(id).toLowerCase();
+                return studentId === searchId;
+            });
             
             if (student) {
                 currentStudent = student;
@@ -1341,11 +1346,16 @@
             const id = document.getElementById('schoolId').value.trim();
             
             if (!id) {
-                showAlert('schoolSearchResult', 'Por favor ingresa un ID de escuela', 'error');
+                showAlert('schoolSearchResult', 'Por favor ingresa un AMIE de escuela', 'error');
                 return;
             }
 
-            const school = schoolsData.find(s => s.id.toLowerCase() === id.toLowerCase());
+            const school = schoolsData.find(s => {
+                // Verificar que s.id existe y convertir ambos a string para comparar
+                const schoolId = s.id ? String(s.id).toLowerCase() : '';
+                const searchId = String(id).toLowerCase();
+                return schoolId === searchId;
+            });
             
             if (school) {
                 currentSchool = school;
@@ -1357,7 +1367,7 @@
                 document.getElementById('schoolData').innerHTML = `
                     <h3>Datos de la Escuela:</h3>
                     <div class="data-row">
-                        <span class="data-label">ID Escuela:</span>
+                        <span class="data-label">AMIE Escuela:</span>
                         <span class="data-value">${school.id}</span>
                     </div>
                     <div class="data-row">
@@ -1376,7 +1386,7 @@
                 
                 document.getElementById('schoolSearchResult').innerHTML = '';
             } else {
-                showAlert('schoolSearchResult', 'ID de escuela no encontrado. Por favor verifica el ID.', 'error');
+                showAlert('schoolSearchResult', 'AMIE de escuela no encontrado. Por favor verifica el AMIE.', 'error');
             }
         }
 
