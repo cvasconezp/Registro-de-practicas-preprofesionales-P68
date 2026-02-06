@@ -342,6 +342,33 @@
             display: none;
         }
 
+        .school-suggestion {
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .school-suggestion:hover {
+            background: #f8f9ff;
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .school-suggestion-id {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .school-suggestion-name {
+            color: #333;
+            font-size: 14px;
+        }
+
         .data-preview {
             max-height: 400px;
             overflow-y: auto;
@@ -533,10 +560,11 @@
                 <div id="loadingIndicator" class="alert alert-info" style="display: none;">
                     ⏳ Cargando datos desde Google Sheets...
                 </div>
-                <h2>🔍 Buscar tu ID de Estudiante</h2>
+                <h2>🔍 Buscar tu ID / Cédula de Estudiante</h2>
                 <div class="form-group">
-                    <label for="studentId">Ingresa tu ID de Estudiante:</label>
-                    <input type="text" id="studentId" placeholder="Ej: 0104840731">
+                    <label for="studentId">Ingresa tu ID / Cédula:</label>
+                    <input type="text" id="studentId" placeholder="Ej: 0104840731" pattern="[0-9]*" inputmode="numeric">
+                    <small style="color: #666; font-size: 12px;">Solo números, sin espacios ni guiones</small>
                 </div>
                 <button class="btn btn-primary" onclick="searchStudent()">Buscar</button>
                 <div id="searchResult"></div>
@@ -584,8 +612,10 @@
                 <h2>🏫 Buscar AMIE de Escuela de Práctica</h2>
                 <div class="form-group">
                     <label for="schoolId">Ingresa el AMIE de la Escuela:</label>
-                    <input type="text" id="schoolId" placeholder="Ej: 05H01056">
+                    <input type="text" id="schoolId" placeholder="Ej: 05H01056" oninput="filterSchools()" autocomplete="off">
+                    <small style="color: #666; font-size: 12px;">Escribe para filtrar las escuelas</small>
                 </div>
+                <div id="schoolSuggestions" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
                 <button class="btn btn-secondary" onclick="goBackToConfirm()">← Atrás</button>
                 <button class="btn btn-primary" onclick="searchSchool()">Buscar Escuela</button>
                 <div id="schoolSearchResult"></div>
@@ -1043,6 +1073,18 @@
             return '';
         }
 
+        // Convertir texto a formato oración (Primera letra mayúscula, resto minúsculas)
+        function toSentenceCase(text) {
+            if (!text) return '';
+            // Convertir todo a minúsculas primero
+            text = text.toLowerCase();
+            // Capitalizar la primera letra de cada palabra después de un espacio
+            return text.split(' ').map(word => {
+                if (word.length === 0) return word;
+                return word.charAt(0).toUpperCase() + word.slice(1);
+            }).join(' ');
+        }
+
         // Process uploaded Excel files
         function processUploadedData() {
             const studentFile = document.getElementById('studentFile').files[0];
@@ -1219,19 +1261,25 @@
             const id = document.getElementById('studentId').value.trim();
             
             if (!id) {
-                showAlert('searchResult', 'Por favor ingresa un ID', 'error');
+                showAlert('searchResult', 'Por favor ingresa tu ID / Cédula', 'error');
+                return;
+            }
+
+            // Validar que solo contenga números
+            if (!/^\d+$/.test(id)) {
+                showAlert('searchResult', 'El ID / Cédula debe contener solo números (sin espacios, guiones o letras)', 'error');
                 return;
             }
 
             const student = studentsData.find(s => {
                 // Verificar que s.id existe y convertir ambos a string para comparar
-                const studentId = s.id ? String(s.id).toLowerCase() : '';
-                const searchId = String(id).toLowerCase();
+                const studentId = s.id ? String(s.id).replace(/\D/g, '') : ''; // Remover no-dígitos
+                const searchId = String(id).replace(/\D/g, '');
                 return studentId === searchId;
             });
             
             if (student) {
-                currentStudent = student;
+                currentStudent = {...student}; // Clonar el objeto
                 updateStepIndicator(2);
                 document.getElementById('searchStep').classList.add('hidden');
                 document.getElementById('confirmStep').classList.remove('hidden');
@@ -1240,7 +1288,7 @@
                 document.getElementById('studentData').innerHTML = `
                     <h3>Datos Encontrados:</h3>
                     <div class="data-row">
-                        <span class="data-label">ID:</span>
+                        <span class="data-label">ID / Cédula:</span>
                         <span class="data-value">${student.id}</span>
                     </div>
                     <div class="data-row">
@@ -1255,7 +1303,7 @@
                 
                 document.getElementById('searchResult').innerHTML = '';
             } else {
-                showAlert('searchResult', 'ID no encontrado. Por favor verifica el ID ingresado.', 'error');
+                showAlert('searchResult', 'ID / Cédula no encontrado. Por favor verifica el número ingresado.', 'error');
             }
         }
 
@@ -1390,6 +1438,42 @@
             }
         }
 
+        // Filtrar escuelas mientras el usuario escribe
+        function filterSchools() {
+            const input = document.getElementById('schoolId').value.trim().toLowerCase();
+            const suggestionsDiv = document.getElementById('schoolSuggestions');
+            
+            if (!input) {
+                suggestionsDiv.innerHTML = '';
+                return;
+            }
+
+            // Filtrar escuelas que coincidan con el inicio del ID
+            const filtered = schoolsData.filter(s => {
+                const schoolId = s.id ? String(s.id).toLowerCase() : '';
+                return schoolId.startsWith(input);
+            }).slice(0, 10); // Limitar a 10 resultados
+
+            if (filtered.length === 0) {
+                suggestionsDiv.innerHTML = '<p style="color: #999; padding: 10px;">No se encontraron escuelas</p>';
+                return;
+            }
+
+            suggestionsDiv.innerHTML = filtered.map(school => `
+                <div class="school-suggestion" onclick="selectSchool('${school.id}')">
+                    <div class="school-suggestion-id">${school.id}</div>
+                    <div class="school-suggestion-name">${school.nombre}</div>
+                </div>
+            `).join('');
+        }
+
+        // Seleccionar una escuela de las sugerencias
+        function selectSchool(schoolId) {
+            document.getElementById('schoolId').value = schoolId;
+            document.getElementById('schoolSuggestions').innerHTML = '';
+            searchSchool();
+        }
+
         function submitForm() {
             const authorityName = document.getElementById('authorityName').value.trim();
             const authorityCargo = document.getElementById('authorityCargo').value;
@@ -1432,12 +1516,15 @@
                 return;
             }
 
-            // Create submission record
+            // Limpiar ID del estudiante (solo números)
+            const cleanStudentId = currentStudent.id ? String(currentStudent.id).replace(/\D/g, '') : '';
+
+            // Create submission record con formato oración
             const submission = {
                 timestamp: new Date().toISOString(),
                 fecha_hora: new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' }),
-                estudiante_id: currentStudent.id,
-                estudiante_nombre_completo: currentStudent.nombreCompleto,
+                estudiante_id: cleanStudentId,
+                estudiante_nombre_completo: toSentenceCase(currentStudent.nombreCompleto),
                 estudiante_correo: currentStudent.correo,
                 estudiante_telefono: currentStudent.telefono,
                 estudiante_centro_apoyo: currentStudent.centroApoyo,
@@ -1446,7 +1533,7 @@
                 escuela_nombre: currentSchool.nombre,
                 escuela_distrito: currentSchool.distrito,
                 escuela_sistema: currentSchool.sistema,
-                autoridad_nombre: authorityName,
+                autoridad_nombre: toSentenceCase(authorityName),
                 autoridad_cargo: authorityCargo,
                 autoridad_telefono: authorityPhone
             };
