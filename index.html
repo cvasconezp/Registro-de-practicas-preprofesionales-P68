@@ -39,6 +39,27 @@
             margin-bottom: 10px;
         }
 
+        .admin-login-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 6px;
+            color: #667eea;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .admin-login-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+
         .mode-selector {
             display: flex;
             gap: 20px;
@@ -47,35 +68,7 @@
         }
 
         .mode-btn {
-            padding: 15px 40px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .mode-btn.admin {
-            background: #f093fb;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .mode-btn.student {
-            background: #4facfe;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-
-        .mode-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-        }
-
-        .mode-btn.active {
-            transform: scale(1.05);
+            display: none; /* Ya no se usan estos botones */
         }
 
         .content-area {
@@ -388,12 +381,11 @@
 <body>
     <div class="container">
         <div class="header">
+            <button class="admin-login-btn" onclick="switchMode('admin')" title="Acceso Administrador">
+                🔐 Iniciar Sesión
+            </button>
             <h1>Sistema de Gestión de Prácticas Estudiantiles</h1>
             <p>Plataforma para la gestión y registro de información de prácticas</p>
-            <div class="mode-selector">
-                <button class="mode-btn admin" onclick="switchMode('admin')">Panel de Administrador</button>
-                <button class="mode-btn student active" onclick="switchMode('student')">Portal de Estudiante</button>
-            </div>
         </div>
 
         <!-- ADMIN PANEL -->
@@ -676,23 +668,34 @@
 
         function loadDataFromGoogleSheets() {
             if (!GOOGLE_SHEETS_URL) {
-                console.log('Google Sheets URL not configured');
+                console.log('❌ Google Sheets URL not configured');
                 hideLoadingIndicator();
                 return;
             }
 
-            console.log('Intentando cargar datos desde Google Sheets...');
+            console.log('🔄 Intentando cargar datos desde Google Sheets...');
+            console.log('📍 URL:', GOOGLE_SHEETS_URL);
 
             // Cargar estudiantes usando JSONP approach
             const studentsUrl = GOOGLE_SHEETS_URL + '?operation=loadStudents&callback=handleStudentsData';
+            console.log('📚 Cargando estudiantes desde:', studentsUrl);
             loadScriptData(studentsUrl, 'studentsScript');
 
-            // Cargar escuelas usando JSONP approach
+            // Cargar escuelas usando JSONP approach  
             const schoolsUrl = GOOGLE_SHEETS_URL + '?operation=loadSchools&callback=handleSchoolsData';
+            console.log('🏫 Cargando escuelas desde:', schoolsUrl);
             loadScriptData(schoolsUrl, 'schoolsScript');
             
-            // Ocultar indicador después de 5 segundos si no se cargó nada
-            setTimeout(hideLoadingIndicator, 5000);
+            // Ocultar indicador después de 10 segundos si no se cargó nada
+            setTimeout(() => {
+                hideLoadingIndicator();
+                if (studentsData.length === 0) {
+                    console.warn('⚠️ No se cargaron estudiantes después de 10 segundos');
+                }
+                if (schoolsData.length === 0) {
+                    console.warn('⚠️ No se cargaron escuelas después de 10 segundos');
+                }
+            }, 10000);
         }
 
         function hideLoadingIndicator() {
@@ -713,8 +716,11 @@
             const script = document.createElement('script');
             script.id = scriptId;
             script.src = url;
-            script.onerror = function() {
-                console.log('Error loading data from Google Sheets');
+            script.onload = function() {
+                console.log('✅ Script cargado:', scriptId);
+            };
+            script.onerror = function(error) {
+                console.error('❌ Error loading script:', scriptId, error);
                 hideLoadingIndicator();
             };
             document.head.appendChild(script);
@@ -722,27 +728,35 @@
 
         // Callback functions for JSONP
         window.handleStudentsData = function(data) {
+            console.log('📥 Respuesta de estudiantes recibida:', data);
+            
             if (data.result === 'success' && data.data && data.data.length > 0) {
                 studentsData = data.data;
                 saveToStorage();
                 console.log('✅ Estudiantes cargados desde Google Sheets:', studentsData.length);
+                console.log('📋 Primeros 3 estudiantes:', studentsData.slice(0, 3));
                 updateAdminStats();
                 hideLoadingIndicator();
             } else {
-                console.log('No hay estudiantes en Google Sheets');
+                console.log('⚠️ No hay estudiantes en Google Sheets o respuesta vacía');
+                console.log('📊 Datos recibidos:', data);
                 hideLoadingIndicator();
             }
         };
 
         window.handleSchoolsData = function(data) {
+            console.log('📥 Respuesta de escuelas recibida:', data);
+            
             if (data.result === 'success' && data.data && data.data.length > 0) {
                 schoolsData = data.data;
                 saveToStorage();
                 console.log('✅ Escuelas cargadas desde Google Sheets:', schoolsData.length);
+                console.log('🏫 Primeras 3 escuelas:', schoolsData.slice(0, 3));
                 updateAdminStats();
                 hideLoadingIndicator();
             } else {
-                console.log('No hay escuelas en Google Sheets');
+                console.log('⚠️ No hay escuelas en Google Sheets o respuesta vacía');
+                console.log('📊 Datos recibidos:', data);
                 hideLoadingIndicator();
             }
         };
@@ -925,14 +939,10 @@
         function switchMode(mode) {
             const adminPanel = document.getElementById('admin-panel');
             const studentPanel = document.getElementById('student-panel');
-            const adminBtn = document.querySelector('.mode-btn.admin');
-            const studentBtn = document.querySelector('.mode-btn.student');
 
             if (mode === 'admin') {
                 adminPanel.classList.add('active');
                 studentPanel.classList.remove('active');
-                adminBtn.classList.add('active');
-                studentBtn.classList.remove('active');
                 
                 // Check if admin is logged in
                 if (!isAdminLoggedIn) {
@@ -946,8 +956,6 @@
             } else {
                 studentPanel.classList.add('active');
                 adminPanel.classList.remove('active');
-                studentBtn.classList.add('active');
-                adminBtn.classList.remove('active');
             }
         }
 
