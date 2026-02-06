@@ -411,7 +411,7 @@
             <button class="admin-login-btn" onclick="switchMode('admin')" title="Acceso Administrador">
                 🔐 Iniciar Sesión
             </button>
-            <h1>Sistema de Gestión de Prácticas Estudiantiles</h1>
+            <h1>Registro de información de prácticas</h1>
             <p>Plataforma para la gestión y registro de información de prácticas</p>
         </div>
 
@@ -547,7 +547,7 @@
                 </div>
                 <div class="step" id="step4">
                     <div class="step-number">4</div>
-                    <div class="step-label">Datos del Rector</div>
+                    <div class="step-label">Datos de la Autoridad</div>
                 </div>
                 <div class="step" id="step5">
                     <div class="step-number">5</div>
@@ -568,6 +568,30 @@
                 </div>
                 <button class="btn btn-primary" onclick="searchStudent()">Buscar</button>
                 <div id="searchResult"></div>
+                
+                <!-- Formulario de registro de nuevo estudiante (oculto inicialmente) -->
+                <div id="newStudentForm" class="hidden" style="margin-top: 20px; padding: 20px; background: #f8f9ff; border-radius: 10px;">
+                    <h3 style="color: #667eea;">📝 Registrar Nuevo Estudiante</h3>
+                    <div class="form-group">
+                        <label for="newStudentId">ID / Cédula:</label>
+                        <input type="text" id="newStudentId" pattern="[0-9]*" inputmode="numeric" readonly style="background: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label for="newStudentName">Nombre Completo: <span style="color: red;">*</span></label>
+                        <input type="text" id="newStudentName" placeholder="Ej: Juan Pérez García">
+                    </div>
+                    <div class="form-group">
+                        <label for="newStudentEmail">Correo Electrónico: <span style="color: red;">*</span></label>
+                        <input type="email" id="newStudentEmail" placeholder="ejemplo@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="newStudentPhone">Teléfono: <span style="color: red;">*</span></label>
+                        <input type="tel" id="newStudentPhone" maxlength="10" pattern="[0-9]{10}" placeholder="0999999999">
+                        <small style="color: #666; font-size: 12px;">10 dígitos numéricos</small>
+                    </div>
+                    <button class="btn btn-secondary" onclick="cancelNewStudent()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="registerNewStudent()">Registrar</button>
+                </div>
             </div>
 
             <!-- STEP 2: CONFIRM PERSONAL DATA -->
@@ -618,7 +642,46 @@
                 <div id="schoolSuggestions" style="max-height: 300px; overflow-y: auto; margin-bottom: 15px;"></div>
                 <button class="btn btn-secondary" onclick="goBackToConfirm()">← Atrás</button>
                 <button class="btn btn-primary" onclick="searchSchool()">Buscar Escuela</button>
+                <button class="btn" style="background: #10b981; color: white; margin-left: 10px;" onclick="showAddSchoolForm()">➕ Agregar Nueva Escuela</button>
                 <div id="schoolSearchResult"></div>
+                
+                <!-- FORMULARIO PARA AGREGAR NUEVA ESCUELA -->
+                <div id="addSchoolForm" class="hidden" style="margin-top: 30px; padding: 20px; background: #f8f9ff; border-radius: 10px; border: 2px solid #667eea;">
+                    <h3 style="color: #667eea;">➕ Agregar Nueva Escuela</h3>
+                    <p style="color: #666; margin-bottom: 20px;">Por favor ingresa los datos de la nueva escuela:</p>
+                    
+                    <div class="form-group">
+                        <label for="newSchoolAmie">AMIE de la Escuela: <span style="color: red;">*</span></label>
+                        <input type="text" id="newSchoolAmie" required>
+                        <small style="color: #666; font-size: 12px;">Código AMIE de la institución educativa</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newSchoolName">Nombre de la Escuela: <span style="color: red;">*</span></label>
+                        <input type="text" id="newSchoolName" required>
+                        <small style="color: #666; font-size: 12px;">Nombre completo de la institución</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newSchoolDistrito">Distrito: <span style="color: red;">*</span></label>
+                        <input type="text" id="newSchoolDistrito" required>
+                        <small style="color: #666; font-size: 12px;">Distrito educativo</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="newSchoolSistema">Sistema Educativo: <span style="color: red;">*</span></label>
+                        <select id="newSchoolSistema" required>
+                            <option value="">-- Selecciona el sistema --</option>
+                            <option value="Intercultural">Intercultural</option>
+                            <option value="Intercultural Bilingüe">Intercultural Bilingüe</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button class="btn btn-secondary" onclick="hideAddSchoolForm()">Cancelar</button>
+                        <button class="btn btn-primary" onclick="saveNewSchool()">💾 Guardar Escuela</button>
+                    </div>
+                </div>
             </div>
 
             <!-- STEP 4: CONFIRM SCHOOL DATA AND AUTHORITY INFO -->
@@ -1280,6 +1343,7 @@
             
             if (student) {
                 currentStudent = {...student}; // Clonar el objeto
+                document.getElementById('newStudentForm').classList.add('hidden');
                 updateStepIndicator(2);
                 document.getElementById('searchStep').classList.add('hidden');
                 document.getElementById('confirmStep').classList.remove('hidden');
@@ -1303,8 +1367,99 @@
                 
                 document.getElementById('searchResult').innerHTML = '';
             } else {
-                showAlert('searchResult', 'ID / Cédula no encontrado. Por favor verifica el número ingresado.', 'error');
+                // No se encontró - mostrar opción de registro
+                document.getElementById('newStudentForm').classList.remove('hidden');
+                document.getElementById('newStudentId').value = id;
+                showAlert('searchResult', 
+                    `No se encontró el ID / Cédula <strong>${id}</strong>. Por favor completa el formulario abajo para registrarte.`, 
+                    'warning');
             }
+        }
+
+        // Cancelar registro de nuevo estudiante
+        function cancelNewStudent() {
+            document.getElementById('newStudentForm').classList.add('hidden');
+            document.getElementById('searchResult').innerHTML = '';
+            document.getElementById('newStudentName').value = '';
+            document.getElementById('newStudentEmail').value = '';
+            document.getElementById('newStudentPhone').value = '';
+        }
+
+        // Registrar nuevo estudiante
+        function registerNewStudent() {
+            const id = document.getElementById('newStudentId').value.trim();
+            const name = document.getElementById('newStudentName').value.trim();
+            const email = document.getElementById('newStudentEmail').value.trim();
+            const phone = document.getElementById('newStudentPhone').value.trim();
+
+            // Validaciones
+            if (!name) {
+                alert('Por favor ingresa tu nombre completo');
+                return;
+            }
+
+            if (!email) {
+                alert('Por favor ingresa tu correo electrónico');
+                return;
+            }
+
+            // Validar email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Por favor ingresa un correo electrónico válido');
+                return;
+            }
+
+            if (!phone) {
+                alert('Por favor ingresa tu teléfono');
+                return;
+            }
+
+            if (!/^\d{10}$/.test(phone)) {
+                alert('El teléfono debe tener exactamente 10 dígitos');
+                return;
+            }
+
+            // Crear nuevo estudiante
+            const newStudent = {
+                id: id,
+                nombreCompleto: name,
+                correo: email,
+                telefono: phone
+            };
+
+            // Agregar a la lista
+            studentsData.push(newStudent);
+            saveToStorage();
+
+            // Sincronizar con Google Sheets
+            syncStudentsToGoogleSheets();
+
+            // Continuar con el registro
+            currentStudent = {...newStudent};
+            document.getElementById('newStudentForm').classList.add('hidden');
+            updateStepIndicator(2);
+            document.getElementById('searchStep').classList.add('hidden');
+            document.getElementById('confirmStep').classList.remove('hidden');
+
+            // Display student data
+            document.getElementById('studentData').innerHTML = `
+                <h3>Datos Registrados:</h3>
+                <div class="data-row">
+                    <span class="data-label">ID / Cédula:</span>
+                    <span class="data-value">${newStudent.id}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Nombre Completo:</span>
+                    <span class="data-value">${newStudent.nombreCompleto}</span>
+                </div>
+            `;
+
+            // Populate edit fields
+            document.getElementById('editEmail').value = newStudent.correo;
+            document.getElementById('editPhone').value = newStudent.telefono;
+
+            showAlert('searchResult', '');
         }
 
         function confirmPersonalData() {
@@ -1407,6 +1562,7 @@
             
             if (school) {
                 currentSchool = school;
+                document.getElementById('addSchoolForm').classList.add('hidden');
                 updateStepIndicator(4);
                 document.getElementById('schoolSearchStep').classList.add('hidden');
                 document.getElementById('schoolConfirmStep').classList.remove('hidden');
@@ -1434,7 +1590,12 @@
                 
                 document.getElementById('schoolSearchResult').innerHTML = '';
             } else {
-                showAlert('schoolSearchResult', 'AMIE de escuela no encontrado. Por favor verifica el AMIE.', 'error');
+                // No se encontró - mostrar formulario de registro
+                document.getElementById('addSchoolForm').classList.remove('hidden');
+                document.getElementById('newSchoolAmie').value = id;
+                showAlert('schoolSearchResult', 
+                    `No se encontró el AMIE <strong>${id}</strong>. Por favor completa el formulario abajo para registrar la escuela.`, 
+                    'warning');
             }
         }
 
@@ -1472,6 +1633,105 @@
             document.getElementById('schoolId').value = schoolId;
             document.getElementById('schoolSuggestions').innerHTML = '';
             searchSchool();
+        }
+
+        // Mostrar formulario para agregar nueva escuela
+        function showAddSchoolForm() {
+            document.getElementById('addSchoolForm').classList.remove('hidden');
+            document.getElementById('newSchoolAmie').value = '';
+            document.getElementById('newSchoolName').value = '';
+            document.getElementById('newSchoolDistrito').value = '';
+            document.getElementById('newSchoolSistema').value = '';
+        }
+
+        // Ocultar formulario de agregar escuela
+        function hideAddSchoolForm() {
+            document.getElementById('addSchoolForm').classList.add('hidden');
+            document.getElementById('schoolSearchResult').innerHTML = '';
+        }
+
+        // Guardar nueva escuela
+        function saveNewSchool() {
+            const amie = document.getElementById('newSchoolAmie').value.trim();
+            const nombre = document.getElementById('newSchoolName').value.trim();
+            const distrito = document.getElementById('newSchoolDistrito').value.trim();
+            const sistema = document.getElementById('newSchoolSistema').value;
+
+            // Validaciones
+            if (!amie) {
+                alert('Por favor ingresa el AMIE de la escuela');
+                return;
+            }
+
+            if (!nombre) {
+                alert('Por favor ingresa el nombre de la escuela');
+                return;
+            }
+
+            if (!distrito) {
+                alert('Por favor ingresa el distrito');
+                return;
+            }
+
+            if (!sistema) {
+                alert('Por favor selecciona el sistema educativo');
+                return;
+            }
+
+            // Verificar que no exista ya
+            const exists = schoolsData.find(s => 
+                s.id && String(s.id).toLowerCase() === amie.toLowerCase()
+            );
+
+            if (exists) {
+                alert('Esta escuela ya existe en el sistema');
+                return;
+            }
+
+            // Crear nueva escuela
+            const newSchool = {
+                id: amie,
+                nombre: nombre,
+                distrito: distrito,
+                sistema: sistema
+            };
+
+            // Agregar a la lista
+            schoolsData.push(newSchool);
+            saveToStorage();
+
+            // Sincronizar con Google Sheets
+            syncSchoolsToGoogleSheets();
+
+            // Continuar con el registro
+            currentSchool = newSchool;
+            document.getElementById('addSchoolForm').classList.add('hidden');
+            updateStepIndicator(4);
+            document.getElementById('schoolSearchStep').classList.add('hidden');
+            document.getElementById('schoolConfirmStep').classList.remove('hidden');
+
+            // Display school data
+            document.getElementById('schoolData').innerHTML = `
+                <h3>Datos de la Escuela Registrada:</h3>
+                <div class="data-row">
+                    <span class="data-label">AMIE Escuela:</span>
+                    <span class="data-value">${newSchool.id}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Nombre:</span>
+                    <span class="data-value">${newSchool.nombre}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Distrito:</span>
+                    <span class="data-value">${newSchool.distrito}</span>
+                </div>
+                <div class="data-row">
+                    <span class="data-label">Sistema Educativo:</span>
+                    <span class="data-value">${newSchool.sistema}</span>
+                </div>
+            `;
+
+            showAlert('schoolSearchResult', '');
         }
 
         function submitForm() {
