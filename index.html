@@ -538,6 +538,9 @@
 
             <!-- STEP 1: SEARCH STUDENT ID -->
             <div id="searchStep" class="section">
+                <div id="loadingIndicator" class="alert alert-info" style="display: none;">
+                    ⏳ Cargando datos desde Google Sheets...
+                </div>
                 <h2>🔍 Buscar tu ID de Estudiante</h2>
                 <div class="form-group">
                     <label for="studentId">Ingresa tu ID de Estudiante:</label>
@@ -658,6 +661,15 @@
             loadFromStorage();
             checkAdminSession();
             loadGoogleSheetsConfig();
+            
+            // Mostrar indicador de carga si hay URL configurada
+            if (GOOGLE_SHEETS_URL && studentsData.length === 0) {
+                const indicator = document.getElementById('loadingIndicator');
+                if (indicator) {
+                    indicator.style.display = 'block';
+                }
+            }
+            
             // Intentar cargar datos desde Google Sheets
             loadDataFromGoogleSheets();
         };
@@ -665,43 +677,75 @@
         function loadDataFromGoogleSheets() {
             if (!GOOGLE_SHEETS_URL) {
                 console.log('Google Sheets URL not configured');
+                hideLoadingIndicator();
                 return;
             }
 
-            // Cargar estudiantes
-            fetch(GOOGLE_SHEETS_URL + '?operation=loadStudents', {
-                method: 'GET'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.result === 'success' && data.data && data.data.length > 0) {
-                    studentsData = data.data;
-                    saveToStorage();
-                    console.log('Estudiantes cargados desde Google Sheets:', studentsData.length);
-                    updateAdminStats();
-                }
-            })
-            .catch(error => {
-                console.log('No se pudieron cargar estudiantes desde Google Sheets:', error);
-            });
+            console.log('Intentando cargar datos desde Google Sheets...');
 
-            // Cargar escuelas
-            fetch(GOOGLE_SHEETS_URL + '?operation=loadSchools', {
-                method: 'GET'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.result === 'success' && data.data && data.data.length > 0) {
-                    schoolsData = data.data;
-                    saveToStorage();
-                    console.log('Escuelas cargadas desde Google Sheets:', schoolsData.length);
-                    updateAdminStats();
-                }
-            })
-            .catch(error => {
-                console.log('No se pudieron cargar escuelas desde Google Sheets:', error);
-            });
+            // Cargar estudiantes usando JSONP approach
+            const studentsUrl = GOOGLE_SHEETS_URL + '?operation=loadStudents&callback=handleStudentsData';
+            loadScriptData(studentsUrl, 'studentsScript');
+
+            // Cargar escuelas usando JSONP approach
+            const schoolsUrl = GOOGLE_SHEETS_URL + '?operation=loadSchools&callback=handleSchoolsData';
+            loadScriptData(schoolsUrl, 'schoolsScript');
+            
+            // Ocultar indicador después de 5 segundos si no se cargó nada
+            setTimeout(hideLoadingIndicator, 5000);
         }
+
+        function hideLoadingIndicator() {
+            const indicator = document.getElementById('loadingIndicator');
+            if (indicator) {
+                indicator.style.display = 'none';
+            }
+        }
+
+        function loadScriptData(url, scriptId) {
+            // Remove old script if exists
+            const oldScript = document.getElementById(scriptId);
+            if (oldScript) {
+                oldScript.remove();
+            }
+
+            // Create new script tag
+            const script = document.createElement('script');
+            script.id = scriptId;
+            script.src = url;
+            script.onerror = function() {
+                console.log('Error loading data from Google Sheets');
+                hideLoadingIndicator();
+            };
+            document.head.appendChild(script);
+        }
+
+        // Callback functions for JSONP
+        window.handleStudentsData = function(data) {
+            if (data.result === 'success' && data.data && data.data.length > 0) {
+                studentsData = data.data;
+                saveToStorage();
+                console.log('✅ Estudiantes cargados desde Google Sheets:', studentsData.length);
+                updateAdminStats();
+                hideLoadingIndicator();
+            } else {
+                console.log('No hay estudiantes en Google Sheets');
+                hideLoadingIndicator();
+            }
+        };
+
+        window.handleSchoolsData = function(data) {
+            if (data.result === 'success' && data.data && data.data.length > 0) {
+                schoolsData = data.data;
+                saveToStorage();
+                console.log('✅ Escuelas cargadas desde Google Sheets:', schoolsData.length);
+                updateAdminStats();
+                hideLoadingIndicator();
+            } else {
+                console.log('No hay escuelas en Google Sheets');
+                hideLoadingIndicator();
+            }
+        };
 
         function syncStudentsToGoogleSheets() {
             if (!GOOGLE_SHEETS_URL || studentsData.length === 0) {
