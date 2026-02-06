@@ -739,7 +739,7 @@
 
         // Admin credentials
         const ADMIN_ID = '1722769070';
-        const ADMIN_PASSWORD = '1722769070';
+        const ADMIN_PASSWORD = 'eCG9ywY3nBW@dLzcYpF';
 
         // Try to load data from localStorage on page load
         window.onload = function() {
@@ -1148,6 +1148,22 @@
             }).join(' ');
         }
 
+        // Función especial para nombres de escuelas que detecta siglas
+        function formatSchoolName(text) {
+            if (!text) return '';
+            
+            // Detectar si tiene patrones de siglas (palabras todas en mayúsculas o entre comillas)
+            const hasAcronyms = /\b[A-Z]{2,}\b|"[^"]+"/g.test(text);
+            
+            if (hasAcronyms) {
+                // Mantener el formato original si tiene siglas
+                return text;
+            } else {
+                // Aplicar formato oración si no tiene siglas
+                return toSentenceCase(text);
+            }
+        }
+
         // Process uploaded Excel files
         function processUploadedData() {
             const studentFile = document.getElementById('studentFile').files[0];
@@ -1420,10 +1436,10 @@
                 return;
             }
 
-            // Crear nuevo estudiante
+            // Crear nuevo estudiante con formato oración
             const newStudent = {
                 id: id,
-                nombreCompleto: name,
+                nombreCompleto: toSentenceCase(name),
                 correo: email,
                 telefono: phone
             };
@@ -1516,10 +1532,24 @@
                 return;
             }
 
+            // Actualizar datos en currentStudent
             currentStudent.correo = email;
             currentStudent.telefono = phone;
             currentStudent.centroApoyo = centroApoyo;
             currentStudent.nivelPractica = nivelPractica;
+            
+            // IMPORTANTE: Actualizar también en studentsData para que persista
+            const studentIndex = studentsData.findIndex(s => 
+                s.id && String(s.id).replace(/\D/g, '') === String(currentStudent.id).replace(/\D/g, '')
+            );
+            
+            if (studentIndex !== -1) {
+                studentsData[studentIndex].correo = email;
+                studentsData[studentIndex].telefono = phone;
+                saveToStorage();
+                // Sincronizar cambios con Google Sheets
+                syncStudentsToGoogleSheets();
+            }
             
             updateStepIndicator(3);
             document.getElementById('confirmStep').classList.add('hidden');
@@ -1688,10 +1718,10 @@
                 return;
             }
 
-            // Crear nueva escuela
+            // Crear nueva escuela con formato apropiado
             const newSchool = {
                 id: amie,
-                nombre: nombre,
+                nombre: formatSchoolName(nombre),
                 distrito: distrito,
                 sistema: sistema
             };
