@@ -786,6 +786,9 @@
 
         // Try to load data from localStorage on page load
         window.onload = function() {
+            console.log('🚀 Aplicación iniciada');
+            console.log('📍 URL de Google Sheets:', GOOGLE_SHEETS_URL);
+            
             loadFromStorage();
             checkAdminSession();
             loadGoogleSheetsConfig();
@@ -799,6 +802,7 @@
             }
             
             // Intentar cargar datos desde Google Sheets
+            console.log('📥 Iniciando carga desde Google Sheets...');
             loadDataFromGoogleSheets();
         };
 
@@ -992,12 +996,15 @@
         }
 
         function loadGoogleSheetsConfig() {
-            const savedUrl = localStorage.getItem('googleSheetsUrl');
-            if (savedUrl) {
-                GOOGLE_SHEETS_URL = savedUrl;
+            // IMPORTANTE: Limpiar URL vieja de localStorage
+            try {
+                localStorage.removeItem('googleSheetsUrl');
+            } catch (e) {
+                // Ignorar errores
             }
-            // Si no hay URL guardada pero sí hay una hardcodeada, usarla
-            if (!savedUrl && GOOGLE_SHEETS_URL) {
+            
+            // Siempre usar la URL hardcodeada
+            if (GOOGLE_SHEETS_URL) {
                 console.log('✅ Usando URL de Google Sheets hardcodeada');
             }
         }
